@@ -81,7 +81,7 @@ jobs:
       - name: Patch package.json for electron-builder
         shell: bash
         run: |
-          jq '.build.electronDist="D:\a\electron-dist" | .build.electronVersion="37.2.2"' app/electron/package.json > app/electron/package.tmp.json
+          jq '.build.electronDist="D:/a/electron-dist" | .build.electronVersion="37.2.2"' app/electron/package.json > app/electron/package.tmp.json
           mv app/electron/package.tmp.json app/electron/package.json
 
       - name: Build with Gradle Wrapper
