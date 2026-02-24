@@ -61,7 +61,8 @@ public class JavaLegacyBasicItemResolverTests {
             ChunkerItemProperty.STEW_EFFECT,
             ChunkerItemProperty.ENTITY,
             ChunkerItemProperty.OMINOUS_BOTTLE_AMPLIFIER,
-            ChunkerItemProperty.BUNDLE_CONTENTS
+            ChunkerItemProperty.BUNDLE_CONTENTS,
+            ChunkerItemProperty.LODESTONE_DATA
     );
     public static final Map<Class<? extends Enum<?>>, Set<?>> UNSUPPORTED_ENUMS = Map.of(
             ChunkerVanillaEntityType.class, Set.of(
@@ -147,7 +148,11 @@ public class JavaLegacyBasicItemResolverTests {
                     ChunkerVanillaEntityType.CREAKING,
                     ChunkerVanillaEntityType.HAPPY_GHAST,
                     ChunkerVanillaEntityType.COPPER_GOLEM,
-                    ChunkerVanillaEntityType.MANNEQUIN
+                    ChunkerVanillaEntityType.MANNEQUIN,
+                    ChunkerVanillaEntityType.CAMEL_HUSK,
+                    ChunkerVanillaEntityType.NAUTILUS,
+                    ChunkerVanillaEntityType.PARCHED,
+                    ChunkerVanillaEntityType.ZOMBIE_NAUTILUS
             ),
             ChunkerPotionType.class, Set.of(
                     ChunkerPotionType.EMPTY,
@@ -324,6 +329,30 @@ public class JavaLegacyBasicItemResolverTests {
                             true,
                             true
                     ))),
+            };
+        } else if (asClass.equals(ChunkerFireworkExplosion.class)) {
+            return (T[]) new ChunkerFireworkExplosion[]{
+                    new ChunkerFireworkExplosion(
+                            ChunkerFireworkShape.SMALL_BALL,
+                            List.of(Color.RED, Color.GREEN),
+                            List.of(Color.RED, Color.GREEN),
+                            false,
+                            false
+                    ),
+                    new ChunkerFireworkExplosion(
+                            ChunkerFireworkShape.LARGE_BALL,
+                            List.of(Color.RED),
+                            List.of(Color.GREEN),
+                            true,
+                            true
+                    ),
+                    new ChunkerFireworkExplosion(
+                            ChunkerFireworkShape.CREEPER,
+                            List.of(),
+                            List.of(),
+                            true,
+                            true
+                    ),
             };
         } else if (asClass.equals(List.class)) {
             Type listType = Object.class;

@@ -11,6 +11,7 @@ import com.hivemc.chunker.conversion.intermediate.column.chunk.identifier.type.i
 import com.hivemc.chunker.conversion.intermediate.column.chunk.itemstack.ChunkerItemDisplay;
 import com.hivemc.chunker.conversion.intermediate.column.chunk.itemstack.ChunkerItemProperty;
 import com.hivemc.chunker.conversion.intermediate.column.chunk.itemstack.ChunkerItemStack;
+import com.hivemc.chunker.conversion.intermediate.column.chunk.itemstack.ChunkerLodestoneData;
 import com.hivemc.chunker.conversion.intermediate.column.chunk.itemstack.enchantment.ChunkerEnchantmentType;
 import com.hivemc.chunker.conversion.intermediate.column.chunk.itemstack.firework.ChunkerFireworkExplosion;
 import com.hivemc.chunker.conversion.intermediate.column.chunk.itemstack.firework.ChunkerFireworkShape;
@@ -26,9 +27,11 @@ import com.hivemc.chunker.conversion.intermediate.column.entity.Entity;
 import com.hivemc.chunker.conversion.intermediate.column.entity.type.ChunkerEntityType;
 import com.hivemc.chunker.conversion.intermediate.level.ChunkerLevel;
 import com.hivemc.chunker.conversion.intermediate.level.map.ChunkerMap;
+import com.hivemc.chunker.conversion.intermediate.world.Dimension;
 import com.hivemc.chunker.mapping.identifier.Identifier;
 import com.hivemc.chunker.nbt.TagType;
 import com.hivemc.chunker.nbt.tags.Tag;
+import com.hivemc.chunker.nbt.tags.array.IntArrayTag;
 import com.hivemc.chunker.nbt.tags.collection.CompoundTag;
 import com.hivemc.chunker.nbt.tags.collection.ListTag;
 import com.hivemc.chunker.nbt.tags.primitive.IntTag;
@@ -44,6 +47,7 @@ import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.StreamSupport;
 
 /**
  * Resolver for converting Java component NBT to the Chunker ItemStack and resolving all the properties of the item.
@@ -517,7 +521,9 @@ public class JavaComponentItemStackResolver extends ItemStackResolver<JavaResolv
             @Override
             public Optional<ChunkerHornInstrument> read(@NotNull CompoundTag value) {
                 return value.getOptional("components", CompoundTag.class)
-                        .flatMap(tag -> tag.getOptionalValue("minecraft:instrument", String.class))
+                        .flatMap(tag -> tag.getOptional("minecraft:instrument", Tag.class))
+                        // Only allow string instruments (as we don't currently support other types of instrument)
+                        .flatMap(tag -> Optional.ofNullable(tag instanceof StringTag stringTag ? stringTag.getBoxedValue() : null))
                         .map(resolvers::readHornInstrument);
             }
 
@@ -680,17 +686,33 @@ public class JavaComponentItemStackResolver extends ItemStackResolver<JavaResolv
                                 .flatMap(ChunkerFireworkShape::getByName)
                                 .orElse(ChunkerFireworkShape.SMALL_BALL);
 
-                        // Parse colors
-                        int[] colorsRGB = explosionTag.getIntArray("colors", null);
-                        List<Color> colors = colorsRGB == null ? Collections.emptyList() : IntStream.of(colorsRGB)
-                                .mapToObj(Color::new)
-                                .toList();
+                        // Parse colors (ListTags on 1.21.5 and newer)
+                        Tag<?> colorsTag = explosionTag.get("colors");
+                        List<Color> colors = Collections.emptyList();
+                        if (colorsTag instanceof ListTag<?, ?> colorsTagList) {
+                            colors = StreamSupport.stream(colorsTagList.spliterator(), false)
+                                    .mapToInt(colorsTagInt -> (int) colorsTagInt.getBoxedValue())
+                                    .mapToObj(Color::new)
+                                    .toList();
+                        } else if (colorsTag instanceof IntArrayTag colorsArrayTag) {
+                            colors = IntStream.of(colorsArrayTag.getBoxedValue())
+                                    .mapToObj(Color::new)
+                                    .toList();
+                        }
 
-                        // Parse fade colors
-                        int[] fadeColorsRGB = explosionTag.getIntArray("fade_colors", null);
-                        List<Color> fadeColors = fadeColorsRGB == null ? Collections.emptyList() : IntStream.of(fadeColorsRGB)
-                                .mapToObj(Color::new)
-                                .toList();
+                        // Parse fade colors (ListTags on 1.21.5 and newer)
+                        Tag<?> fadeColorsTag = explosionTag.get("fade_colors");
+                        List<Color> fadeColors = Collections.emptyList();
+                        if (fadeColorsTag instanceof ListTag<?, ?> fadeColorsTagList) {
+                            fadeColors = StreamSupport.stream(fadeColorsTagList.spliterator(), false)
+                                    .mapToInt(colorsTagInt -> (int) colorsTagInt.getBoxedValue())
+                                    .mapToObj(Color::new)
+                                    .toList();
+                        } else if (fadeColorsTag instanceof IntArrayTag fadeColorsArrayTag) {
+                            fadeColors = IntStream.of(fadeColorsArrayTag.getBoxedValue())
+                                    .mapToObj(Color::new)
+                                    .toList();
+                        }
 
                         // Parse trail / twinkle
                         boolean trail = explosionTag.getByte("has_trail", (byte) 0) == (byte) 1;
@@ -726,20 +748,129 @@ public class JavaComponentItemStackResolver extends ItemStackResolver<JavaResolv
                     for (ChunkerFireworkExplosion chunkerFireworkExplosion : chunkerFireworks.getExplosions()) {
                         CompoundTag explosion = new CompoundTag(5);
                         explosion.put("shape", chunkerFireworkExplosion.getShape().getName());
-                        explosion.put("colors", chunkerFireworkExplosion.getColors().stream()
-                                .mapToInt(Color::getRGB)
-                                .toArray()
-                        );
-                        explosion.put("fade_colors", chunkerFireworkExplosion.getFadeColors().stream()
-                                .mapToInt(Color::getRGB)
-                                .toArray()
-                        );
+
+                        // 1.21.5 uses ListTags for these instead of IntArrayTags
+                        if (resolvers.dataVersion().getVersion().isGreaterThanOrEqual(1, 21, 5)) {
+                            explosion.put("colors", new ListTag<>(TagType.INT,
+                                    chunkerFireworkExplosion.getColors().stream()
+                                            .map(color -> new IntTag(color.getRGB() & 0x00FFFFFF))
+                                            .toList()
+                            ));
+                            explosion.put("fade_colors", new ListTag<>(TagType.INT,
+                                    chunkerFireworkExplosion.getFadeColors().stream()
+                                            .map(color -> new IntTag(color.getRGB() & 0x00FFFFFF))
+                                            .toList()
+                            ));
+                        } else {
+                            explosion.put("colors", chunkerFireworkExplosion.getColors().stream()
+                                    .mapToInt(Color::getRGB)
+                                    .map(argb -> argb & 0x00FFFFFF)
+                                    .toArray()
+                            );
+                            explosion.put("fade_colors", chunkerFireworkExplosion.getFadeColors().stream()
+                                    .mapToInt(Color::getRGB)
+                                    .map(argb -> argb & 0x00FFFFFF)
+                                    .toArray()
+                            );
+                        }
                         explosion.put("has_trail", chunkerFireworkExplosion.isTrail() ? (byte) 1 : (byte) 0);
                         explosion.put("has_twinkle", chunkerFireworkExplosion.isTwinkle() ? (byte) 1 : (byte) 0);
                         explosions.add(explosion);
                     }
                     tag.put("explosions", explosions);
                 }
+            }
+        });
+
+        // Fireworks
+        registerHandler(ChunkerItemProperty.FIREWORK_EXPLOSION, new PropertyHandler<>() {
+            @Override
+            public Optional<ChunkerFireworkExplosion> read(@NotNull CompoundTag value) {
+                Optional<CompoundTag> component = value.getOptional("components", CompoundTag.class)
+                        .flatMap(tag -> tag.getOptional("minecraft:firework_explosion", CompoundTag.class));
+                if (component.isEmpty()) return Optional.empty();
+
+                CompoundTag explosionTag = component.get();
+
+                // Parse the explosion properties
+                ChunkerFireworkShape shape = explosionTag.getOptionalValue("shape", String.class)
+                        .flatMap(ChunkerFireworkShape::getByName)
+                        .orElse(ChunkerFireworkShape.SMALL_BALL);
+
+                // Parse colors (ListTags on 1.21.5 and newer)
+                Tag<?> colorsTag = explosionTag.get("colors");
+                List<Color> colors = Collections.emptyList();
+                if (colorsTag instanceof ListTag<?, ?> colorsTagList) {
+                    colors = StreamSupport.stream(colorsTagList.spliterator(), false)
+                            .mapToInt(colorsTagInt -> (int) colorsTagInt.getBoxedValue())
+                            .mapToObj(Color::new)
+                            .toList();
+                } else if (colorsTag instanceof IntArrayTag colorsArrayTag) {
+                    colors = IntStream.of(colorsArrayTag.getBoxedValue())
+                            .mapToObj(Color::new)
+                            .toList();
+                }
+
+                // Parse fade colors (ListTags on 1.21.5 and newer)
+                Tag<?> fadeColorsTag = explosionTag.get("fade_colors");
+                List<Color> fadeColors = Collections.emptyList();
+                if (fadeColorsTag instanceof ListTag<?, ?> fadeColorsTagList) {
+                    fadeColors = StreamSupport.stream(fadeColorsTagList.spliterator(), false)
+                            .mapToInt(colorsTagInt -> (int) colorsTagInt.getBoxedValue())
+                            .mapToObj(Color::new)
+                            .toList();
+                } else if (fadeColorsTag instanceof IntArrayTag fadeColorsArrayTag) {
+                    fadeColors = IntStream.of(fadeColorsArrayTag.getBoxedValue())
+                            .mapToObj(Color::new)
+                            .toList();
+                }
+
+                // Parse trail / twinkle
+                boolean trail = explosionTag.getByte("has_trail", (byte) 0) == (byte) 1;
+                boolean twinkle = explosionTag.getByte("has_twinkle", (byte) 0) == (byte) 1;
+
+                // Create the explosion
+                return Optional.of(new ChunkerFireworkExplosion(
+                        shape,
+                        colors,
+                        fadeColors,
+                        trail,
+                        twinkle
+                ));
+            }
+
+            @Override
+            public void write(@NotNull CompoundTag value, @NotNull ChunkerFireworkExplosion chunkerFireworkExplosion) {
+                // Write the tag
+                CompoundTag explosion = value.getOrCreateCompound("components").getOrCreateCompound("minecraft:firework_explosion");
+                explosion.put("shape", chunkerFireworkExplosion.getShape().getName());
+
+                // 1.21.5 uses ListTags for these instead of IntArrayTags
+                if (resolvers.dataVersion().getVersion().isGreaterThanOrEqual(1, 21, 5)) {
+                    explosion.put("colors", new ListTag<>(TagType.INT,
+                            chunkerFireworkExplosion.getColors().stream()
+                                    .map(color -> new IntTag(color.getRGB() & 0x00FFFFFF))
+                                    .toList()
+                    ));
+                    explosion.put("fade_colors", new ListTag<>(TagType.INT,
+                            chunkerFireworkExplosion.getFadeColors().stream()
+                                    .map(color -> new IntTag(color.getRGB() & 0x00FFFFFF))
+                                    .toList()
+                    ));
+                } else {
+                    explosion.put("colors", chunkerFireworkExplosion.getColors().stream()
+                            .mapToInt(Color::getRGB)
+                            .map(argb -> argb & 0x00FFFFFF)
+                            .toArray()
+                    );
+                    explosion.put("fade_colors", chunkerFireworkExplosion.getFadeColors().stream()
+                            .mapToInt(Color::getRGB)
+                            .map(argb -> argb & 0x00FFFFFF)
+                            .toArray()
+                    );
+                }
+                explosion.put("has_trail", chunkerFireworkExplosion.isTrail() ? (byte) 1 : (byte) 0);
+                explosion.put("has_twinkle", chunkerFireworkExplosion.isTwinkle() ? (byte) 1 : (byte) 0);
             }
         });
 
@@ -795,6 +926,64 @@ public class JavaComponentItemStackResolver extends ItemStackResolver<JavaResolv
                     items.add(itemTag.get());
                 }
                 value.getOrCreateCompound("components").put("minecraft:bundle_contents", items);
+            }
+        });
+
+        // Lodestone Compass
+        registerContextualHandler(ChunkerItemProperty.LODESTONE_DATA, new PropertyHandler<>() {
+            @Override
+            public Optional<ChunkerLodestoneData> read(@NotNull Pair<ChunkerItemStack, CompoundTag> state) {
+                Optional<CompoundTag> component = state.value().getOptional("components", CompoundTag.class)
+                        .flatMap(tag -> tag.getOptional("minecraft:lodestone_tracker", CompoundTag.class));
+                if (component.isEmpty()) return Optional.empty();
+
+                CompoundTag lodestoneTracker = component.get();
+
+                // Check if there's a target
+                CompoundTag target = lodestoneTracker.getCompound("target");
+                if (target == null) return Optional.empty();
+                Dimension dimension = Dimension.fromJavaNBT(target.get("dimension"), Dimension.OVERWORLD);
+
+                // Check if the position is valid
+                int[] position = target.getIntArray("pos", null);
+                if (position == null) return Optional.empty();
+
+                // Create the data
+                ChunkerLodestoneData lodestoneData = new ChunkerLodestoneData(
+                        dimension,
+                        position[0],
+                        position[1],
+                        position[2],
+                        lodestoneTracker.getByte("tracked", (byte) 1) == (byte) 1
+                );
+
+                // Ensure the item is the lodestone compass (Bedrock based type)
+                if (state.key().getIdentifier() == ChunkerVanillaItemType.COMPASS) {
+                    state.key(new ChunkerItemStack(
+                            ChunkerVanillaItemType.LODESTONE_COMPASS,
+                            state.key().getPreservedIdentifier(),
+                            state.key().getProperties()
+                    ));
+                }
+                return Optional.of(lodestoneData);
+            }
+
+            @Override
+            public void write(@NotNull Pair<ChunkerItemStack, CompoundTag> state, @NotNull ChunkerLodestoneData lodestoneData) {
+                // Write the tag
+                CompoundTag lodestoneTracker = state.value().getOrCreateCompound("components")
+                        .getOrCreateCompound("minecraft:lodestone_tracker");
+
+                // Create the target
+                CompoundTag target = new CompoundTag(2);
+                target.put("dimension", lodestoneData.dimension().getIdentifier());
+                target.put("pos", new int[]{
+                        lodestoneData.x(), lodestoneData.y(), lodestoneData.z()
+                });
+                lodestoneTracker.put("target", target);
+
+                // Add tracked
+                lodestoneTracker.put("tracked", lodestoneData.tracked() ? (byte) 1 : (byte) 0);
             }
         });
 

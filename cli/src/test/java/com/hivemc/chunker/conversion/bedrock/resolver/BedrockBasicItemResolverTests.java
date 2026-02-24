@@ -1,6 +1,8 @@
 package com.hivemc.chunker.conversion.bedrock.resolver;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 import com.google.gson.JsonElement;
 import com.hivemc.chunker.conversion.WorldConverter;
 import com.hivemc.chunker.conversion.encoding.bedrock.BedrockDataVersion;
@@ -17,10 +19,7 @@ import com.hivemc.chunker.conversion.intermediate.column.chunk.identifier.type.b
 import com.hivemc.chunker.conversion.intermediate.column.chunk.identifier.type.block.ChunkerVanillaBlockType;
 import com.hivemc.chunker.conversion.intermediate.column.chunk.identifier.type.item.ChunkerItemType;
 import com.hivemc.chunker.conversion.intermediate.column.chunk.identifier.type.item.ChunkerVanillaItemType;
-import com.hivemc.chunker.conversion.intermediate.column.chunk.itemstack.ChunkerDyeColor;
-import com.hivemc.chunker.conversion.intermediate.column.chunk.itemstack.ChunkerItemDisplay;
-import com.hivemc.chunker.conversion.intermediate.column.chunk.itemstack.ChunkerItemProperty;
-import com.hivemc.chunker.conversion.intermediate.column.chunk.itemstack.ChunkerItemStack;
+import com.hivemc.chunker.conversion.intermediate.column.chunk.itemstack.*;
 import com.hivemc.chunker.conversion.intermediate.column.chunk.itemstack.banner.ChunkerBannerPattern;
 import com.hivemc.chunker.conversion.intermediate.column.chunk.itemstack.enchantment.ChunkerEnchantmentType;
 import com.hivemc.chunker.conversion.intermediate.column.chunk.itemstack.firework.ChunkerFireworkExplosion;
@@ -132,10 +131,18 @@ public class BedrockBasicItemResolverTests {
             )
 
     ), null, Collections.emptyList()));
+    public static final BiMap<ChunkerLodestoneData, Integer> TEMP_LODESTONE_DATA = HashBiMap.create();
     public static final BedrockResolvers resolvers = BedrockEncoders.latest()
             .writerConstructor()
             .construct(null, BedrockDataVersion.latest().getVersion(), converter)
-            .buildResolvers(converter).build();
+            .buildResolvers(converter)
+            // Override the lodestoneData since it uses LevelDB
+            .lodestoneData(TEMP_LODESTONE_DATA.inverse()::get, (data) -> {
+                synchronized (TEMP_LODESTONE_DATA) {
+                    return TEMP_LODESTONE_DATA.computeIfAbsent(data, a -> TEMP_LODESTONE_DATA.size() + 1);
+                }
+            })
+            .build();
     public static final BedrockItemStackResolver RESOLVER = new BedrockItemStackResolver(resolvers);
 
     @SuppressWarnings({"rawtypes"})
@@ -242,25 +249,49 @@ public class BedrockBasicItemResolverTests {
                     new ChunkerFireworks((byte) 2, Collections.emptyList()),
                     new ChunkerFireworks((byte) 1, List.of(new ChunkerFireworkExplosion(
                             ChunkerFireworkShape.SMALL_BALL,
-                            List.of(Color.RED, Color.GREEN),
-                            List.of(Color.RED, Color.GREEN),
+                            List.of(new Color(ChunkerDyeColor.RED.getJavaRGB()), new Color(ChunkerDyeColor.GREEN.getJavaRGB())),
+                            List.of(new Color(ChunkerDyeColor.RED.getJavaRGB()), new Color(ChunkerDyeColor.GREEN.getJavaRGB())),
                             false,
                             false
                     ))),
                     new ChunkerFireworks((byte) 1, List.of(new ChunkerFireworkExplosion(
                             ChunkerFireworkShape.LARGE_BALL,
-                            List.of(Color.RED),
-                            List.of(Color.GREEN),
+                            List.of(new Color(ChunkerDyeColor.RED.getJavaRGB())),
+                            List.of(new Color(ChunkerDyeColor.GREEN.getJavaRGB())),
                             true,
                             true
                     ))),
                     new ChunkerFireworks((byte) 1, List.of(new ChunkerFireworkExplosion(
                             ChunkerFireworkShape.CREEPER,
-                            List.of(),
+                            List.of(new Color(ChunkerDyeColor.BLACK.getJavaRGB())),
                             List.of(),
                             true,
                             true
                     ))),
+            };
+        } else if (asClass.equals(ChunkerFireworkExplosion.class)) {
+            return (T[]) new ChunkerFireworkExplosion[]{
+                    new ChunkerFireworkExplosion(
+                            ChunkerFireworkShape.SMALL_BALL,
+                            List.of(new Color(ChunkerDyeColor.RED.getJavaRGB()), new Color(ChunkerDyeColor.GREEN.getJavaRGB())),
+                            List.of(new Color(ChunkerDyeColor.RED.getJavaRGB()), new Color(ChunkerDyeColor.GREEN.getJavaRGB())),
+                            false,
+                            false
+                    ),
+                    new ChunkerFireworkExplosion(
+                            ChunkerFireworkShape.LARGE_BALL,
+                            List.of(new Color(ChunkerDyeColor.RED.getJavaRGB())),
+                            List.of(new Color(ChunkerDyeColor.GREEN.getJavaRGB())),
+                            true,
+                            true
+                    ),
+                    new ChunkerFireworkExplosion(
+                            ChunkerFireworkShape.CREEPER,
+                            List.of(new Color(ChunkerDyeColor.BLACK.getJavaRGB())),
+                            List.of(),
+                            true,
+                            true
+                    ),
             };
         } else if (asClass.equals(ChunkerTrim.class)) {
             Object[] patterns = generatePropertyValues(ChunkerTrimPattern.class, property);
@@ -273,6 +304,33 @@ public class BedrockBasicItemResolverTests {
             }
 
             return (T[]) trims.toArray();
+        } else if (asClass.equals(ChunkerLodestoneData.class)) {
+            List<ChunkerLodestoneData> chunkerLodestoneDatas = new ArrayList<>();
+            for (Dimension dimension : Dimension.values()) {
+                chunkerLodestoneDatas.add(new ChunkerLodestoneData(
+                        dimension,
+                        10,
+                        10,
+                        50,
+                        true
+                ));
+                chunkerLodestoneDatas.add(new ChunkerLodestoneData(
+                        dimension,
+                        10,
+                        10,
+                        50,
+                        false
+                ));
+                chunkerLodestoneDatas.add(new ChunkerLodestoneData(
+                        dimension,
+                        -100,
+                        0,
+                        -50,
+                        true
+                ));
+            }
+
+            return (T[]) chunkerLodestoneDatas.toArray();
         } else if (asClass.equals(List.class)) {
             Type listType = Object.class;
             if (type instanceof ParameterizedType) {

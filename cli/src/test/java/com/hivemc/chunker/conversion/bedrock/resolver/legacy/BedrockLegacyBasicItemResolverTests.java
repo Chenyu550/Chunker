@@ -65,7 +65,8 @@ public class BedrockLegacyBasicItemResolverTests {
             ChunkerItemProperty.ENTITY, // Not supported AFAIK
             ChunkerItemProperty.TRIM, // Not supported in 1.12
             ChunkerItemProperty.OMINOUS_BOTTLE_AMPLIFIER, // Not supported in 1.12
-            ChunkerItemProperty.BUNDLE_CONTENTS // Not supported in 1.12
+            ChunkerItemProperty.BUNDLE_CONTENTS, // Not supported in 1.12,
+            ChunkerItemProperty.LODESTONE_DATA // Not supported in 1.12,
     );
     public static final Map<Class<? extends Enum<?>>, Set<?>> UNSUPPORTED_ENUMS = Map.of(
             ChunkerEnchantmentType.class, Set.of(
@@ -134,7 +135,11 @@ public class BedrockLegacyBasicItemResolverTests {
                     ChunkerVanillaEntityType.CREAKING,
                     ChunkerVanillaEntityType.HAPPY_GHAST,
                     ChunkerVanillaEntityType.COPPER_GOLEM,
-                    ChunkerVanillaEntityType.MANNEQUIN
+                    ChunkerVanillaEntityType.MANNEQUIN,
+                    ChunkerVanillaEntityType.CAMEL_HUSK,
+                    ChunkerVanillaEntityType.NAUTILUS,
+                    ChunkerVanillaEntityType.PARCHED,
+                    ChunkerVanillaEntityType.ZOMBIE_NAUTILUS
             )
     );
     // Mock converter with two mock maps
@@ -264,25 +269,49 @@ public class BedrockLegacyBasicItemResolverTests {
                     new ChunkerFireworks((byte) 2, Collections.emptyList()),
                     new ChunkerFireworks((byte) 1, List.of(new ChunkerFireworkExplosion(
                             ChunkerFireworkShape.SMALL_BALL,
-                            List.of(Color.RED, Color.GREEN),
-                            List.of(Color.RED, Color.GREEN),
+                            List.of(new Color(ChunkerDyeColor.RED.getJavaRGB()), new Color(ChunkerDyeColor.GREEN.getJavaRGB())),
+                            List.of(new Color(ChunkerDyeColor.RED.getJavaRGB()), new Color(ChunkerDyeColor.GREEN.getJavaRGB())),
                             false,
                             false
                     ))),
                     new ChunkerFireworks((byte) 1, List.of(new ChunkerFireworkExplosion(
                             ChunkerFireworkShape.LARGE_BALL,
-                            List.of(Color.RED),
-                            List.of(Color.GREEN),
+                            List.of(new Color(ChunkerDyeColor.RED.getJavaRGB())),
+                            List.of(new Color(ChunkerDyeColor.GREEN.getJavaRGB())),
                             true,
                             true
                     ))),
                     new ChunkerFireworks((byte) 1, List.of(new ChunkerFireworkExplosion(
                             ChunkerFireworkShape.CREEPER,
-                            List.of(),
+                            List.of(new Color(ChunkerDyeColor.BLACK.getJavaRGB())),
                             List.of(),
                             true,
                             true
                     ))),
+            };
+        } else if (asClass.equals(ChunkerFireworkExplosion.class)) {
+            return (T[]) new ChunkerFireworkExplosion[]{
+                    new ChunkerFireworkExplosion(
+                            ChunkerFireworkShape.SMALL_BALL,
+                            List.of(new Color(ChunkerDyeColor.RED.getJavaRGB()), new Color(ChunkerDyeColor.GREEN.getJavaRGB())),
+                            List.of(new Color(ChunkerDyeColor.RED.getJavaRGB()), new Color(ChunkerDyeColor.GREEN.getJavaRGB())),
+                            false,
+                            false
+                    ),
+                    new ChunkerFireworkExplosion(
+                            ChunkerFireworkShape.LARGE_BALL,
+                            List.of(new Color(ChunkerDyeColor.RED.getJavaRGB())),
+                            List.of(new Color(ChunkerDyeColor.GREEN.getJavaRGB())),
+                            true,
+                            true
+                    ),
+                    new ChunkerFireworkExplosion(
+                            ChunkerFireworkShape.CREEPER,
+                            List.of(new Color(ChunkerDyeColor.BLACK.getJavaRGB())),
+                            List.of(),
+                            true,
+                            true
+                    ),
             };
         } else if (asClass.equals(ChunkerTrim.class)) {
             Object[] patterns = generatePropertyValues(ChunkerTrimPattern.class, property);
