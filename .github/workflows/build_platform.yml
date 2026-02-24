@@ -75,13 +75,13 @@ jobs:
 
       - name: 下载 Electron for Windows 7
         run: |
-          Invoke-WebRequest -Uri "https://github.com/e3kskoy7wqk/Electron-for-windows-7/releases/download/v37.2.2/dist.zip" -OutFile "dist.zip"
+          Invoke-WebRequest -Uri "https://github.com/e3kskoy7wqk/Electron-for-windows-7/releases/download/v40.2.0/dist.zip" -OutFile "dist.zip"
           Expand-Archive dist.zip -DestinationPath D:\a\electron-dist
 
       - name: Patch package.json for electron-builder
         shell: bash
         run: |
-          jq '.build.electronDist="D:/a/electron-dist" | .build.electronVersion="37.2.2"' app/electron/package.json > app/electron/package.tmp.json
+          jq '.build.electronDist="D:/a/electron-dist" | .build.electronVersion="40.2.0"' app/electron/package.json > app/electron/package.tmp.json
           mv app/electron/package.tmp.json app/electron/package.json
 
       - name: Build with Gradle Wrapper
