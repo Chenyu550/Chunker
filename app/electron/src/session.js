@@ -25,6 +25,8 @@ export class Session {
     _finalName = null;
     _dimensionMappings = null;
     _blockMappings = null;
+    _biomeMappings = null;
+    _customDimensions = null;
 
     // Handlers
     _asyncResponseMappers = {};
@@ -347,6 +349,12 @@ export class Session {
                 // Reply with success
                 this.sendMessage({requestId: data.requestId, type: "response"});
                 break;
+            case "set_dimension_registry":
+                this._customDimensions = data.dimensions;
+
+                // Reply with success
+                this.sendMessage({requestId: data.requestId, type: "response"});
+                break;
             case "set_output_name":
                 this._finalName = data.name;
 
@@ -366,6 +374,12 @@ export class Session {
                 break;
             case "set_dimension_mappings":
                 this._dimensionMappings = data.dimensions;
+
+                // Reply with success
+                this.sendMessage({requestId: data.requestId, type: "response"});
+                break;
+            case "set_biome_mappings":
+                this._biomeMappings = data.biomes;
 
                 // Reply with success
                 this.sendMessage({requestId: data.requestId, type: "response"});
@@ -672,9 +686,9 @@ export class Session {
                     }
 
                     // Don't include in-game map data
-                    if (parts.includes("data") && parts.length === 2) {
-                        let fileName = parts[1];
-                        if (fileName === "idcounts.dat" || fileName.startsWith("map_") && fileName.endsWith(".dat")) {
+                    if (parts.includes("data") && parts.length === 2 || parts.includes("maps") && parts.length === 4) {
+                        let fileName = parts[parts.length - 1];
+                        if (fileName === "idcounts.dat" || fileName === "last_id.dat" || fileName.startsWith("map_") && fileName.endsWith(".dat") || /^\d+\.dat$/.test(fileName)) {
                             return false;
                         }
                     }
@@ -698,7 +712,9 @@ export class Session {
             inputPath: worldInputPath,
             outputPath: worldOutputPath,
             outputType: outputType,
+            customDimensions: this._customDimensions,
             inputToOutputDimension: this._dimensionMappings,
+            biomeMappings: this._biomeMappings,
             mappings: this._blockMappings,
             nbtSettings: this._worldSettings,
             pruningList: this._pruningSettings,

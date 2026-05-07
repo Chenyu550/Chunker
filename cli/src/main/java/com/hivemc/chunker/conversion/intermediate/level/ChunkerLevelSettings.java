@@ -25,6 +25,7 @@ public class ChunkerLevelSettings {
     private static final Gson GSON = new Gson();
 
     @Bedrock
+    @Java("BonusChest")
     @Category(Category.Type.WORLD_SETTINGS)
     public boolean bonusChestEnabled = false;
 
@@ -166,6 +167,13 @@ public class ChunkerLevelSettings {
     @Java
     @Hidden
     public boolean AutumnDrop2025 = false;
+
+    @CustomType
+    @Category(Category.Type.WORLD_SETTINGS)
+    @Bedrock
+    @Java
+    @Hidden
+    public boolean SummerDrop2026 = false;
 
     @Bedrock
     @Category(Category.Type.GAME_RULES)
@@ -543,7 +551,7 @@ public class ChunkerLevelSettings {
 
             // Handle custom attributes
             if (field.isAnnotationPresent(CustomType.class)) {
-                Object value = levelReader.readCustomLevelSetting(root, targetName, field.getType());
+                Object value = levelReader.readCustomLevelSetting(root, chunkerLevelSettings, targetName, field.getType());
 
                 // Only write if not null (default value otherwise)
                 if (value != null) {

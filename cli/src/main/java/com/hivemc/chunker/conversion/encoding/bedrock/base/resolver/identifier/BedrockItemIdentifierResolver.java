@@ -292,7 +292,7 @@ public class BedrockItemIdentifierResolver extends ChunkerItemIdentifierResolver
         register(ItemMapping.of("minecraft:cauldron", ChunkerVanillaBlockType.CAULDRON));
         register(ItemMapping.of("minecraft:brewing_stand", ChunkerVanillaBlockType.BREWING_STAND));
         register(ItemMapping.of("minecraft:cake", ChunkerVanillaBlockType.CAKE));
-        register(ItemMapping.of("minecraft:chain", ChunkerVanillaBlockType.CHAIN));
+        register(ItemMapping.of("minecraft:chain", ChunkerVanillaBlockType.IRON_CHAIN));
         register(ItemMapping.of("minecraft:flower_pot", ChunkerVanillaBlockType.FLOWER_POT));
         register(ItemMapping.of("minecraft:emptymap", ChunkerVanillaItemType.MAP));
         register(ItemMapping.of("minecraft:horsearmorleather", ChunkerVanillaItemType.LEATHER_HORSE_ARMOR));
@@ -1184,6 +1184,12 @@ public class BedrockItemIdentifierResolver extends ChunkerItemIdentifierResolver
             register(ItemMapping.of("minecraft:nautilus_spawn_egg", ChunkerVanillaItemType.SPAWN_EGG, ChunkerItemProperty.SPAWN_EGG_MOB, ChunkerVanillaEntityType.NAUTILUS));
             register(ItemMapping.of("minecraft:parched_spawn_egg", ChunkerVanillaItemType.SPAWN_EGG, ChunkerItemProperty.SPAWN_EGG_MOB, ChunkerVanillaEntityType.PARCHED));
             register(ItemMapping.of("minecraft:zombie_nautilus_spawn_egg", ChunkerVanillaItemType.SPAWN_EGG, ChunkerItemProperty.SPAWN_EGG_MOB, ChunkerVanillaEntityType.ZOMBIE_NAUTILUS));
+        }
+
+        // R26U2
+        if (version.isGreaterThanOrEqual(1, 26, 20)) {
+            register(ItemMapping.of("minecraft:sulfur_cube_bucket", ChunkerVanillaItemType.SULFUR_CUBE_BUCKET));
+            register(ItemMapping.of("minecraft:sulfur_cube_spawn_egg", ChunkerVanillaItemType.SPAWN_EGG, ChunkerItemProperty.SPAWN_EGG_MOB, ChunkerVanillaEntityType.SULFUR_CUBE));
         }
     }
 }

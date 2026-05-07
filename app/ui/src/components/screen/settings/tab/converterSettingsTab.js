@@ -60,7 +60,7 @@ export class ConverterSettingsTab extends Component {
             {
                 "display": "Prevent Y Biome Blending",
                 "name": "preventYBiomeBlending",
-                "description": "Whether an empty chunk should be required at the top of each column to prevent vertical biome blending (Java only).",
+                "description": "Whether empty chunks should be padded at the top of each column to prevent vertical biome blending (Java only).",
                 "type": "Boolean"
             }
         ];
@@ -92,6 +92,8 @@ export class ConverterSettingsTab extends Component {
         zip.file("block_mappings.chunker.json", this.app.getBlockMappingsJSON());
         zip.file("pruning.chunker.json", this.app.getPruningJSON());
         zip.file("dimension_mappings.chunker.json", this.app.getDimensionMappingsJSON());
+        zip.file("biome_mappings.chunker.json", this.app.getBiomeMappingsJSON());
+        zip.file("custom_dimensions.chunker.json", this.app.getCustomDimensionsJSON());
         zip.file("README.txt", "Please copy the .json files in this folder to the same directory as your level.dat, Chunker will automatically preload these when you select your world.");
 
         zip.generateAsync({type: "blob"}).then(function (blob) {

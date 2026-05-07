@@ -42,7 +42,6 @@ public class JavaLevelWriter implements LevelWriter, JavaReaderWriter {
     protected final Version version;
     protected final Converter converter;
     protected final JavaResolvers resolvers;
-    protected final File dataFolder;
 
     /**
      * Create a new java level writer.
@@ -56,7 +55,6 @@ public class JavaLevelWriter implements LevelWriter, JavaReaderWriter {
         this.version = version;
         this.converter = converter;
         resolvers = buildResolvers(converter).build();
-        dataFolder = new File(outputFolder, "data");
     }
 
     @Override
@@ -102,20 +100,30 @@ public class JavaLevelWriter implements LevelWriter, JavaReaderWriter {
         if (chunkerLevel.getMaps().isEmpty()) {
             return;
         }
+        File mapsDirectory = resolvers.javaLevelDirectoryResolver().getMapsDirectory();
 
-        // Make data directory
-        if (!dataFolder.isDirectory()) {
-            dataFolder.mkdirs();
+        // Make maps directory
+        if (!mapsDirectory.isDirectory()) {
+            mapsDirectory.mkdirs();
         }
 
         // Update idcounts.dat
         CompoundTag root = new CompoundTag(1);
         root.put("map", (short) chunkerLevel.getMaps().stream().mapToLong(ChunkerMap::getId).max().orElse(0));
 
-        Tag.writeUncompressedJavaNBT(new File(dataFolder, "idcounts.dat"), root);
+        Tag.writeUncompressedJavaNBT(getMapCountFile(), root);
 
         // Write maps
         Task.asyncConsumeForEach("Writing Saved Map", TaskWeight.NORMAL, this::writeMap, chunkerLevel.getMaps());
+    }
+
+    /**
+     * Get the file used for map ID counts.
+     *
+     * @return the file for idcounts.dat (or alternative name).
+     */
+    protected File getMapCountFile() {
+        return new File(resolvers.javaLevelDirectoryResolver().getMapsDirectory(), "idcounts.dat");
     }
 
     /**
@@ -130,7 +138,7 @@ public class JavaLevelWriter implements LevelWriter, JavaReaderWriter {
         CompoundTag mapData = chunkerMap.getOriginalNBT() != null ? chunkerMap.getOriginalNBT() : new CompoundTag(11);
 
         // Copy over the other settings
-        mapData.put("dimension", chunkerMap.getDimension().getJavaID());
+        mapData.put("dimension", (byte) chunkerMap.getDimension().getJavaID());
         mapData.put("width", (short) chunkerMap.getWidth());
         mapData.put("height", (short) chunkerMap.getHeight());
         mapData.put("xCenter", chunkerMap.getXCenter());
@@ -144,6 +152,16 @@ public class JavaLevelWriter implements LevelWriter, JavaReaderWriter {
             mapData.put("colors", resolvers.writeMapColors(chunkerMap.getBytes()));
         }
         return mapData;
+    }
+
+    /**
+     * Get the file name to use for a map data file.
+     *
+     * @param mapId the map id.
+     * @return the file name to use.
+     */
+    protected String getMapFileName(long mapId) {
+        return "map_" + mapId + ".dat";
     }
 
     /**
@@ -161,12 +179,20 @@ public class JavaLevelWriter implements LevelWriter, JavaReaderWriter {
         root.put("DataVersion", resolvers.dataVersion().getDataVersion());
 
         // Write to disk
-        Tag.writeGZipJavaNBT(new File(dataFolder, "map_" + chunkerMap.getId() + ".dat"), root);
+        Tag.writeGZipJavaNBT(new File(
+                resolvers.javaLevelDirectoryResolver().getMapsDirectory(),
+                getMapFileName(chunkerMap.getId())
+        ), root);
     }
 
     @Override
     public void writeCustomLevelSetting(ChunkerLevelSettings chunkerLevelSettings, CompoundTag output, String targetName, Object value) {
         // Check for next update
+        if (targetName.equals("SummerDrop2026")) {
+            // Not supported
+            return;
+        }
+
         if (targetName.equals("AutumnDrop2025")) {
             // Not supported
             return;
@@ -425,15 +451,6 @@ public class JavaLevelWriter implements LevelWriter, JavaReaderWriter {
             data.put("DataVersion", resolvers.dataVersion().getDataVersion());
         }
 
-        // Force void world
-        if (!data.contains("generatorName")) {
-            data.put("generatorName", "flat");
-        }
-
-        if (!data.contains("generatorVersion")) {
-            data.put("generatorVersion", 0);
-        }
-
         if (!data.contains("initialized")) {
             data.put("initialized", (byte) 1);
         }
@@ -482,5 +499,10 @@ public class JavaLevelWriter implements LevelWriter, JavaReaderWriter {
      */
     public JavaWorldWriter createWorldWriter() {
         return new JavaWorldWriter(outputFolder, converter, resolvers);
+    }
+
+    @Override
+    public File getLevelDirectory() {
+        return outputFolder;
     }
 }
